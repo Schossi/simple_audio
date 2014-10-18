@@ -33,6 +33,7 @@ class AudioSound {
   num _pausedTime;
   num _startTime;
   num _scheduledTime;
+  num _pitch = 1.0;
   bool _isFinished = false;
   bool _isPlaying = false;
   Timer _endedTimer;
@@ -88,6 +89,16 @@ class AudioSound {
         return;
       }
       _resume();
+    }
+  }
+
+  /// Get or set the pitch/playback rate of the played sound, default value is 1.
+  num get pitch => _pitch;
+  void set pitch(num value) {
+    _pitch = value;
+
+    if (_sourceNode != null) {
+      _sourceNode.playbackRate.value = _pitch;
     }
   }
 
@@ -187,6 +198,7 @@ class AudioSound {
       _scheduleEndTimer(when + _clip._buffer.duration);
     }
 
+    _sourceNode.playbackRate.value = _pitch;
     _sourceNode.start(_scheduledTime);
     // Called start now.
     _startTime = _source._manager._context.currentTime;
