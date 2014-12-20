@@ -35,10 +35,18 @@ class AudioClip {
   String _errorString = '';
   bool _isReadyToPlay = false;
   bool _urlAbsolute = false;
+  AudioSource defaultSource;
 
-  AudioClip._internal(this._manager, this._name, this._url);
+  AudioClip._internal(this._manager, this._name, this._url){
+  	this.initDefaultSource();
+  }
   AudioClip.external(this._manager, this._name, this._url) {
     _urlAbsolute = true;
+    this.initDefaultSource();
+  }
+  
+  void initDefaultSource(){
+  	defaultSource=this._manager.makeSource(this._name+"_default");
   }
 
   void _empty() {

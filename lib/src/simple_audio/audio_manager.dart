@@ -243,6 +243,11 @@ class AudioManager {
     return source;
   }
 
+  /** Play [clipName] from its default Source */
+  AudioSound playClipFromDefaultSource(String clipName, [bool looped=false]) {    	
+    	return playClipFromSourceIn(0.0, clipName+"_default", clipName, looped);
+    }
+  
   /** Play [clipName] from [sourceName]. */
   AudioSound playClipFromSource(String sourceName, String clipName, [bool looped=false]) {
     return playClipFromSourceIn(0.0, sourceName, clipName, looped);
