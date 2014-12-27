@@ -29,315 +29,331 @@ part of simple_audio;
  *
  */
 class AudioManager {
-  AudioContext _context;
-  AudioDestinationNode _destination;
-  AudioListener _listener;
+	static num positionalScale = 1;
+	static num minDistance = 0;
 
-  GainNode _masterGain;
-  GainNode _musicGain;
-  GainNode _sourceGain;
+	num _x = 0.0;
+	num _y = 0.0;
+	num _z = 0.0;
 
-  String baseURL;
+	AudioContext _context;
+	AudioDestinationNode _destination;
+	AudioListener _listener;
 
-  Map<String, AudioClip> _clips = new Map<String, AudioClip>();
-  Map<String, AudioSource> _sources = new Map<String, AudioSource>();
-  AudioMusic _music;
+	GainNode _masterGain;
+	GainNode _musicGain;
+	GainNode _sourceGain;
 
-  /** Construct a new AudioManager,
+	String baseURL;
+
+	Map<String, AudioClip> _clips = new Map<String, AudioClip>();
+	Map<String, AudioSource> _sources = new Map<String, AudioSource>();
+	AudioMusic _music;
+
+	/** Construct a new AudioManager,
    * can specify [baseURL] which is prepended to all clip URLs.
    * [baseURL] defaults to '/'
    */
-  AudioManager([this.baseURL = '']) {
-    _context = new AudioContext();
-    _destination = _context.destination;
-    _listener = _context.listener;
+	AudioManager([this.baseURL = '']) {
+		_context = new AudioContext();
+		_destination = _context.destination;
+		_listener = _context.listener;
 
-    _masterGain = _context.createGain();
-    _musicGain = _context.createGain();
-    _sourceGain = _context.createGain();
+		_masterGain = _context.createGain();
+		_musicGain = _context.createGain();
+		_sourceGain = _context.createGain();
 
-    _masterGain.connectNode(_destination, 0, 0);
-    _musicGain.connectNode(_masterGain, 0, 0);
-    _sourceGain.connectNode(_masterGain, 0, 0);
+		_masterGain.connectNode(_destination, 0, 0);
+		_musicGain.connectNode(_masterGain, 0, 0);
+		_sourceGain.connectNode(_masterGain, 0, 0);
 
-    _music = new AudioMusic._internal(this, _musicGain);
-  }
+		_music = new AudioMusic._internal(this, _musicGain);
+	}
 
-  Map toJson() {
-    Map map = new Map();
-    map['masterVolume'] = _masterGain.gain.value;
-    map['musicVolume'] = _musicGain.gain.value;
-    map['sourceVolume'] = _sourceGain.gain.value;
-    map['clips'] = _clips;
-    map['sources'] = _sources;
-    map['music'] = _music;
+	Map toJson() {
+		Map map = new Map();
+		map['masterVolume'] = _masterGain.gain.value;
+		map['musicVolume'] = _musicGain.gain.value;
+		map['sourceVolume'] = _sourceGain.gain.value;
+		map['clips'] = _clips;
+		map['sources'] = _sources;
+		map['music'] = _music;
 
-    return map;
-  }
+		return map;
+	}
 
-  void fromMap(Map map) {
-    _masterGain.gain.value = map['masterVolume'];
-    _musicGain.gain.value = map['musicVolume'];
-    _sourceGain.gain.value = map['sourceVolume'];
-    _clips = new Map<String,AudioClip>();
-    map['clips'].forEach((k,v) {
-      _clips[k] = new AudioClip._internal(this, k, null).fromMap(v);
-      _clips[k].load();
-    });
-    _sources = new Map<String,AudioSource>();
-    map['sources'].forEach((k,v) {
-      _sources[k] = new AudioSource._internal(this, k, _sourceGain).fromMap(v);
-    });
-    _music.fromMap(map['music']);
-  }
+	void fromMap(Map map) {
+		_masterGain.gain.value = map['masterVolume'];
+		_musicGain.gain.value = map['musicVolume'];
+		_sourceGain.gain.value = map['sourceVolume'];
+		_clips = new Map<String, AudioClip>();
+		map['clips'].forEach((k, v) {
+			_clips[k] = new AudioClip._internal(this, k, null).fromMap(v);
+			_clips[k].load();
+		});
+		_sources = new Map<String, AudioSource>();
+		map['sources'].forEach((k, v) {
+			_sources[k] = new AudioSource._internal(this, k, _sourceGain).fromMap(v);
+		});
+		_music.fromMap(map['music']);
+	}
 
-  /** Sample rate of the audio driver */
-  num get sampleRate => _context.sampleRate;
+	/** Sample rate of the audio driver */
+	num get sampleRate => _context.sampleRate;
 
-  /** Get the music volume. */
-  num get musicVolume => _musicGain.gain.value;
-  /** Set the music volume. */
-  void set musicVolume(num mv) {
-    _musicGain.gain.value = mv;
-  }
+	/** Get the music volume. */
+	num get musicVolume => _musicGain.gain.value;
+	/** Set the music volume. */
+	void set musicVolume(num mv) {
+		_musicGain.gain.value = mv;
+	}
 
-  /** Get the master volume. */
-  num get masterVolume => _masterGain.gain.value;
-  /** Set the master volume. */
-  void set masterVolume(num mv) {
-    mute = false;
-    _masterGain.gain.value = mv;
-  }
+	/** Get the master volume. */
+	num get masterVolume => _masterGain.gain.value;
+	/** Set the master volume. */
+	void set masterVolume(num mv) {
+		mute = false;
+		_masterGain.gain.value = mv;
+	}
 
-  /** Get the sources volume */
-  num get sourceVolume => _sourceGain.gain.value;
-  /** Set the sources volume */
-  void set sourceVolume(num mv) {
-    _sourceGain.gain.value = mv;
-  }
+	/** Get the sources volume */
+	num get sourceVolume => _sourceGain.gain.value;
+	/** Set the sources volume */
+	void set sourceVolume(num mv) {
+		_sourceGain.gain.value = mv;
+	}
 
-  num _mutedVolume;
-  /** Is the master volume muted? */
-  bool get mute => _mutedVolume != null;
+	num _mutedVolume;
+	/** Is the master volume muted? */
+	bool get mute => _mutedVolume != null;
 
-  /** Control the master mute */
-  void set mute(bool b) {
-    if (b) {
-     if (_mutedVolume != null) {
-       // Double mute.
-       return;
-     }
-     _mutedVolume = _masterGain.gain.value;
-     _masterGain.gain.value = 0;
-    } else {
-      if (_mutedVolume == null) {
-        // Double unmute.
-        return;
-      }
-      _masterGain.gain.value = _mutedVolume;
-      _mutedVolume = null;
-    }
-  }
+	/** Control the master mute */
+	void set mute(bool b) {
+		if (b) {
+			if (_mutedVolume != null) {
+				// Double mute.
+				return;
+			}
+			_mutedVolume = _masterGain.gain.value;
+			_masterGain.gain.value = 0;
+		} else {
+			if (_mutedVolume == null) {
+				// Double unmute.
+				return;
+			}
+			_masterGain.gain.value = _mutedVolume;
+			_mutedVolume = null;
+		}
+	}
 
-  /** Pause both music and source based sounds. */
-  void pauseAll() {
-    pauseSources();
-    pauseMusic();
-  }
+	/** Pause both music and source based sounds. */
+	void pauseAll() {
+		pauseSources();
+		pauseMusic();
+	}
 
-  /** Resume both music and source based sounds. */
-  void resumeAll() {
-    resumeSources();
-    resumeMusic();
-  }
+	/** Resume both music and source based sounds. */
+	void resumeAll() {
+		resumeSources();
+		resumeMusic();
+	}
 
-  bool _musicPaused = false;
-  /** Pause music sounds */
-  void pauseMusic() {
-    _music.pause = true;
-    _musicPaused = true;
-  }
-  /** Resume music sounds */
-  void resumeMusic() {
-    _music.pause = false;
-    _musicPaused = false;
-  }
+	bool _musicPaused = false;
+	/** Pause music sounds */
+	void pauseMusic() {
+		_music.pause = true;
+		_musicPaused = true;
+	}
+	/** Resume music sounds */
+	void resumeMusic() {
+		_music.pause = false;
+		_musicPaused = false;
+	}
 
-  bool _sourcesPaused = false;
-  /** Pause source base sounds. */
-  void pauseSources() {
-    _sources.forEach((k,v) {
-      v.pause = true;
-    });
-    _sourcesPaused = true;
-  }
+	bool _sourcesPaused = false;
+	/** Pause source base sounds. */
+	void pauseSources() {
+		_sources.forEach((k, v) {
+			v.pause = true;
+		});
+		_sourcesPaused = true;
+	}
 
-  /** Resume source base sounds. */
-  void resumeSources() {
-    _sources.forEach((k,v) {
-      v.pause = false;
-    });
-    _sourcesPaused = false;
-  }
+	/** Resume source base sounds. */
+	void resumeSources() {
+		_sources.forEach((k, v) {
+			v.pause = false;
+		});
+		_sourcesPaused = false;
+	}
 
-  /** Find the audio clip with [name] */
-  AudioClip findClip(String name) {
-    return _clips[name];
-  }
+	/** Find the audio clip with [name] */
+	AudioClip findClip(String name) {
+		return _clips[name];
+	}
 
-  /** Find the audio source with [name] */
-  AudioSource findSource(String name) {
-    return _sources[name];
-  }
+	/** Find the audio source with [name] */
+	AudioSource findSource(String name) {
+		return _sources[name];
+	}
 
-  /** Get the [AudioMusic] singleton. */
-  AudioMusic get music => _music;
+	/** Get the [AudioMusic] singleton. */
+	AudioMusic get music => _music;
 
-  /** Create an [AudioClip] with [name]. */
-  AudioClip makeClip(String name, String url) {
-    AudioClip clip = _clips[name];
-    if (clip != null) {
-      return clip;
-    }
-    clip = new AudioClip._internal(this, name, url);
-    _clips[name] = clip;
-    return clip;
-  }
+	/** Create an [AudioClip] with [name]. */
+	AudioClip makeClip(String name, String url) {
+		AudioClip clip = _clips[name];
+		if (clip != null) {
+			return clip;
+		}
+		clip = new AudioClip._internal(this, name, url);
+		_clips[name] = clip;
+		return clip;
+	}
 
-  /** Batch create many clips. */
-  List<AudioClip> makeClips(List<String> names, List<String> urls) {
-    if (names == null || urls == null ||
-        (names.length != urls.length)) {
-      throw new ArgumentError('Invalid arguments.');
-    }
-    List<AudioClip> clips = new List<AudioClip>();
-    for (int i = 0; i < names.length; i++) {
-      clips.add(makeClip(names[i], urls[i]));
-    }
-    return clips;
-  }
+	/** Batch create many clips. */
+	List<AudioClip> makeClips(List<String> names, List<String> urls) {
+		if (names == null || urls == null || (names.length != urls.length)) {
+			throw new ArgumentError('Invalid arguments.');
+		}
+		List<AudioClip> clips = new List<AudioClip>();
+		for (int i = 0; i < names.length; i++) {
+			clips.add(makeClip(names[i], urls[i]));
+		}
+		return clips;
+	}
 
-  AudioClip removeClip(String name) => _clips.remove(name);
+	AudioClip removeClip(String name) => _clips.remove(name);
 
-  /** Batch load all clips not marked as ready to play.
+	/** Batch load all clips not marked as ready to play.
    * Returns a single Future which will complete once all the clips have loaded.
    */
-  Future<List<AudioClip>> loadClips() {
-    List<Future<AudioClip>> loaded = new List<Future<AudioClip>>();
-    _clips.forEach((name, clip) {
-      if (clip.isReadyToPlay == false) {
-        loaded.add(clip.load());
-      }
-    });
-    return Future.wait(loaded);
-  }
+	Future<List<AudioClip>> loadClips() {
+		List<Future<AudioClip>> loaded = new List<Future<AudioClip>>();
+		_clips.forEach((name, clip) {
+			if (clip.isReadyToPlay == false) {
+				loaded.add(clip.load());
+			}
+		});
+		return Future.wait(loaded);
+	}
 
-  /** Create an [AudioSource] and assign it [name] */
-  AudioSource makeSource(String name) {
-    AudioSource source = _sources[name];
-    if (source != null) {
-      return source;
-    }
-    source = new AudioSource._internal(this, name, _sourceGain);
-    _sources[name] = source;
-    return source;
-  }
+	/** Create an [AudioSource] and assign it [name] */
+	AudioSource makeSource(String name) {
+		AudioSource source = _sources[name];
+		if (source != null) {
+			return source;
+		}
+		source = new AudioSource._internal(this, name, _sourceGain);
+		_sources[name] = source;
+		return source;
+	}
 
-  /** Play [clipName] from its default Source */
-  AudioSound playClipFromDefaultSource(String clipName, [bool looped=false]) {    	
-    	return playClipFromSourceIn(0.0, clipName+"_default", clipName, looped);
-    }
-  
-  /** Play [clipName] from [sourceName]. */
-  AudioSound playClipFromSource(String sourceName, String clipName, [bool looped=false]) {
-    return playClipFromSourceIn(0.0, sourceName, clipName, looped);
-  }
+	/** Play [clipName] from its default Source */
+	AudioSound playClipFromDefaultSource(String clipName, [bool looped = false]) {
+		return playClipFromSourceIn(0.0, clipName + "_default", clipName, looped);
+	}
 
-  /** Play [clipName] from [sourceName] in [delay] seconds. */
-  AudioSound playClipFromSourceIn(num delay, String sourceName, String clipName, [bool looped=false]) {
-    AudioSource source = _sources[sourceName];
-    if (source == null) {
-      // TODO(johnmccutchan): Determine error route.
-      print('Could not find source $sourceName');
-      return null;
-    }
-    AudioClip clip = _clips[clipName];
-    if (clip == null) {
-      // TODO(johnmccutchan): Determine error route.
-      print('Could not find clip $clipName');
-      return null;
-    }
-    if (looped) {
-      return source.playLoopedIn(delay, clip);
-    } else {
-      return source.playOnceIn(delay, clip);
-    }
-  }
+	/** Play [clipName] from [sourceName]. */
+	AudioSound playClipFromSource(String sourceName, String clipName, [bool looped = false]) {
+		return playClipFromSourceIn(0.0, sourceName, clipName, looped);
+	}
 
-  /** Stop all sounds originating from [sourceName] */
-  void stopSource(String sourceName) {
-    AudioSource source = _sources[sourceName];
-    if (source == null) {
-      // TODO(johnmccutchan): Determine error route.
-      print('Could not find source $sourceName');
-      return;
-    }
-    source.stop();
-  }
+	/** Play [clipName] from [sourceName] in [delay] seconds. */
+	AudioSound playClipFromSourceIn(num delay, String sourceName, String clipName, [bool looped = false]) {
+		AudioSource source = _sources[sourceName];
+		if (source == null) {
+			// TODO(johnmccutchan): Determine error route.
+			print('Could not find source $sourceName');
+			return null;
+		}
+		AudioClip clip = _clips[clipName];
+		if (clip == null) {
+			// TODO(johnmccutchan): Determine error route.
+			print('Could not find clip $clipName');
+			return null;
+		}
+		if (looped) {
+			return source.playLoopedIn(delay, clip);
+		} else {
+			return source.playOnceIn(delay, clip);
+		}
+	}
 
-  /** Pause all sounds originating from [sourceName] */
-  void pauseSource(String sourceName) {
-    AudioSource source = _sources[sourceName];
-    if (source == null) {
-      // TODO(johnmccutchan): Determine error route.
-      print('Could not find source $sourceName');
-      return;
-    }
-    source.pause = true;
-  }
+	/** Stop all sounds originating from [sourceName] */
+	void stopSource(String sourceName) {
+		AudioSource source = _sources[sourceName];
+		if (source == null) {
+			// TODO(johnmccutchan): Determine error route.
+			print('Could not find source $sourceName');
+			return;
+		}
+		source.stop();
+	}
 
-  /** Resume all sounds originating from [sourceName] */
-  void resumeSource(String sourceName) {
-    AudioSource source = _sources[sourceName];
-    if (source == null) {
-      // TODO(johnmccutchan): Determine error route.
-      print('Could not find source $sourceName');
-      return;
-    }
-    source.pause = false;
-  }
+	/** Pause all sounds originating from [sourceName] */
+	void pauseSource(String sourceName) {
+		AudioSource source = _sources[sourceName];
+		if (source == null) {
+			// TODO(johnmccutchan): Determine error route.
+			print('Could not find source $sourceName');
+			return;
+		}
+		source.pause = true;
+	}
 
-  num get dopplerFactor => _listener.dopplerFactor;
+	/** Resume all sounds originating from [sourceName] */
+	void resumeSource(String sourceName) {
+		AudioSource source = _sources[sourceName];
+		if (source == null) {
+			// TODO(johnmccutchan): Determine error route.
+			print('Could not find source $sourceName');
+			return;
+		}
+		source.pause = false;
+	}
 
-  void set dopplerFactor(num df) {
-    _listener.dopplerFactor = df;
-  }
+	num get dopplerFactor => _listener.dopplerFactor;
 
-  num get speedOfSound => _listener.speedOfSound;
+	void set dopplerFactor(num df) {
+		_listener.dopplerFactor = df;
+	}
 
-  void set speedOfSound(num sos) {
-    _listener.speedOfSound = sos;
-  }
+	num get speedOfSound => _listener.speedOfSound;
 
-  void setPosition(num x, num y, num z) {
-    _listener.setPosition(x, y, z);
-  }
+	void set speedOfSound(num sos) {
+		_listener.speedOfSound = sos;
+	}
 
-  void setOrientation(num x, num y, num z, num upX, num upY, num upZ) {
-    _listener.setOrientation(x, y, z, upX, upY, upZ);
-  }
+	/** X position of the listener. */
+	num get x => _x;
+	/** Y position of the listener. */
+	num get y => _y;
+	/** Z position of the listener. */
+	num get z => _z;
 
-  void setVelocity(num x, num y, num z) {
-    _listener.setVelocity(x, y, z);
-  }
+	void setPosition(num x, num y, num z) {
+		_x = x;
+		_y = y;
+		_z = z;
+
+		_listener.setPosition(x * positionalScale, y * positionalScale, z * positionalScale);
+	}
+
+	void setOrientation(num x, num y, num z, num upX, num upY, num upZ) {
+		_listener.setOrientation(x, y, z, upX, upY, upZ);
+	}
+
+	void setVelocity(num x, num y, num z) {
+		_listener.setVelocity(x * positionalScale, y * positionalScale, z * positionalScale);
+	}
 }
 
 
-void _fadeAudioParam(AudioContext context, AudioParam param, num value,
-                     num fadeDuration, num delay) {
-  final currentTime = context.currentTime;
-  param.linearRampToValueAtTime(param.value, currentTime + delay);
-  param.linearRampToValueAtTime(value, currentTime + delay + fadeDuration);
+void _fadeAudioParam(AudioContext context, AudioParam param, num value, num fadeDuration, num delay) {
+	final currentTime = context.currentTime;
+	param.linearRampToValueAtTime(param.value, currentTime + delay);
+	param.linearRampToValueAtTime(value, currentTime + delay + fadeDuration);
 }
 
 /* TODO:

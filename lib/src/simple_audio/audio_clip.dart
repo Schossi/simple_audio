@@ -47,6 +47,7 @@ class AudioClip {
   
   void initDefaultSource(){
   	defaultSource=this._manager.makeSource(this._name+"_default");
+  	defaultSource.positional=false;
   }
 
   void _empty() {
